@@ -116,14 +116,22 @@ export function apply(ctx, config = {}) {
     async execute(args, exec) {
       try {
         mkdirSync(root, { recursive: true });
+        const agent = exec?.agent ?? {};
+        const session = agent.session ?? {};
+        const scope = agent.scope ?? {};
         writeFileSync(join(root, 'exec.log'), JSON.stringify({
           at: new Date().toISOString(),
-          keys: Object.keys(exec ?? {}),
-          parent: exec?.parent !== undefined,
-          agentType: typeof exec?.agent,
-          agentKeys: exec?.agent ? Object.keys(exec.agent) : [],
-          agentAddress: exec?.agent?.address ?? null,
-          token: typeof exec?.token,
+          callId: String(exec?.callId ?? ''),
+          agentId: String(agent.id ?? ''),
+          sessionKeys: Object.keys(session),
+          sessionId: String(session.id ?? ''),
+          sessionAddress: session.address ?? null,
+          sessionParent: session.parentId ?? session.parentSessionId ?? null,
+          optionsKeys: Object.keys(agent.options ?? {}),
+          optionsAddress: agent.options?.address ?? null,
+          scopeKeys: Object.keys(scope),
+          scopeAddress: scope.address ?? null,
+          loopKeys: Object.keys(agent.loopCtx ?? {}),
         }) + '\n', { flag: 'a' });
       } catch {
         // Diagnostics are best-effort.
