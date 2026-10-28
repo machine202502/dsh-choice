@@ -332,6 +332,40 @@ window.__ModuleLoader__.load({
       document.addEventListener('pointerdown', handle, true);
     };
 
+    const diag = (stage, data) => {
+      try {
+        void fetch('http://127.0.0.1:49236/diag', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ stage, data }),
+        });
+      } catch {
+        // Bridge down: diagnostics are optional.
+      }
+    };
+
+    const installProbe = () => {
+      if (window.__dshChoiceProbe) return;
+      window.__dshChoiceProbe = true;
+      document.addEventListener('pointerdown', (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        diag('pointerdown', {
+          tag: target?.tagName ?? '',
+          cls: target?.className?.toString?.().slice(0, 80) ?? '',
+          cb: target?.closest?.('[data-cb]')?.getAttribute('data-cb') ?? '',
+        });
+      }, true);
+      const button = document.createElement('button');
+      button.textContent = 'TEST';
+      button.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:9999;padding:8px 14px;'
+        + 'border-radius:999px;border:1px solid #5B8CFF;background:#0F1720;color:#93B4FF;font:12px system-ui;cursor:pointer';
+      button.addEventListener('pointerdown', () => {
+        diag('probe-click', {});
+        void sendMessage('тест из плавающей кнопки');
+      }, true);
+      document.body.appendChild(button);
+    };
+
     const openLightbox = (src, title) => {
       const overlay = document.createElement('div');
       overlay.className = 'cb-lightbox';
@@ -359,6 +393,7 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'uiConversation'],
       apply(ctx) {
         installFallback();
+        installProbe();
         try {
           ctx.uiConversation.events.register(cardDefinition);
         } catch (error) {

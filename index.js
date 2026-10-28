@@ -153,6 +153,21 @@ export function apply(ctx, config = {}) {
       createReadStream(file).pipe(res);
       return;
     }
+    if (req.method === 'POST' && url.pathname === '/diag') {
+      let body = '';
+      req.on('data', (chunk) => { body += chunk; if (body.length > 8192) req.destroy(); });
+      req.on('end', () => {
+        try {
+          mkdirSync(root, { recursive: true });
+          const line = new Date().toISOString() + ' ' + body + '\n';
+          writeFileSync(join(root, 'diag.log'), line, { flag: 'a' });
+        } catch {
+          // Diagnostics are best-effort.
+        }
+        json(200, { ok: true });
+      });
+      return;
+    }
     if (req.method === 'POST' && url.pathname === '/attach') {
       let body = '';
       req.on('data', (chunk) => { body += chunk; if (body.length > 4096) req.destroy(); });
