@@ -152,21 +152,32 @@ window.__ModuleLoader__.load({
 
     const composerText = (area) => (area instanceof HTMLTextAreaElement ? area.value : (area.innerText ?? area.textContent ?? '')).trim();
 
-    const setComposerText = (area, text) => {
+    const selectAllContents = (area) => {
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(area);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    };
+
+    const setComposerText = async (area, text) => {
       area.focus();
+      await sleep(60);
       if (area instanceof HTMLTextAreaElement) {
         const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
         setter?.call(area, text);
         area.dispatchEvent(new Event('input', { bubbles: true }));
         return;
       }
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(area);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
+      selectAllContents(area);
+      await sleep(40);
       document.execCommand('delete');
-      if (text.length > 0) document.execCommand('insertText', false, text);
+      await sleep(40);
+      if (text.length > 0) {
+        selectAllContents(area);
+        document.execCommand('insertText', false, text);
+      }
+      await sleep(80);
     };
 
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -179,13 +190,15 @@ window.__ModuleLoader__.load({
       let inserted = false;
 
       for (let attempt = 0; attempt < 3; attempt += 1) {
-        setComposerText(area, text);
-        await sleep(150);
+        await setComposerText(area, text);
         if (composerText(area) === text.trim()) { inserted = true; break; }
         if (attempt === 1) {
+          area.textContent = '';
+          area.dispatchEvent(new Event('input', { bubbles: true }));
+          await sleep(60);
           area.textContent = text;
           area.dispatchEvent(new Event('input', { bubbles: true }));
-          await sleep(120);
+          await sleep(140);
           if (composerText(area) === text.trim()) { inserted = true; break; }
         }
       }
@@ -202,7 +215,7 @@ window.__ModuleLoader__.load({
 
       await sleep(180);
       if (draft && composerText(area) === '') {
-        setComposerText(area, draft);
+        await setComposerText(area, draft);
       }
       return { ok: true, debug: `sent; button=${send ? 'yes' : 'no'}` };
     };
