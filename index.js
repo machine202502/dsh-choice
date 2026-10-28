@@ -119,7 +119,7 @@ export function apply(ctx, config = {}) {
         || exec?.agent?.address !== undefined
         || (typeof depth === 'number' && depth > 0);
       if (isSubagent) {
-        throw new Error('ask_user_choice is only available to the main agent: a subagent cannot show a board to the user');
+        throw new Error('human interaction is unavailable while the calling agent is owned by another live agent; include the unresolved question or decision in the child agent\'s final result');
       }
       const options = Array.isArray(args?.options) ? args.options : [];
       if (options.length < 2) throw new Error('options must contain at least two items');
