@@ -352,68 +352,9 @@ window.__ModuleLoader__.load({
       );
     }
 
-    const installFallback = () => {
-      if (window.__dshChoiceFallback) return;
-      window.__dshChoiceFallback = true;
-      const handle = (event) => {
-        const target = event.target instanceof Element ? event.target.closest('[data-cb]') : null;
-        if (!target) return;
-        const kind = target.getAttribute('data-cb');
-        if (kind === 'play') {
-          const src = target.getAttribute('data-cb-src');
-          if (src) { const audio = new Audio(src); void audio.play(); }
-          return;
-        }
-        if (kind === 'image') {
-          const src = target.getAttribute('data-cb-src');
-          if (!src) return;
-          openLightbox(src, target.getAttribute('data-cb-title') ?? '');
-          return;
-        }
-        if (kind === 'pick') {
-          if (target.disabled) return;
-          const value = target.getAttribute('data-cb-value') ?? '';
-          const card = target.closest('.cb-card');
-          if (card) {
-            card.querySelectorAll('[data-cb="pick"]').forEach((button) => { button.disabled = true; });
-            target.classList.add('cb-select--picked');
-            target.textContent = '✓';
-            const row = target.closest('.cb-row');
-            if (row) row.classList.add('cb-row--selected');
-          }
-          if (value) void sendMessage(value);
-        }
-      };
-      document.addEventListener('pointerdown', handle, true);
-    };
-
-    const openLightbox = (src, title) => {
-      const overlay = document.createElement('div');
-      overlay.className = 'cb-lightbox';
-      overlay.innerHTML = '';
-      const card = document.createElement('div');
-      card.className = 'cb-lightbox-card';
-      const img = document.createElement('img');
-      img.className = 'cb-lightbox-img';
-      img.src = src;
-      card.appendChild(img);
-      if (title) {
-        const caption = document.createElement('span');
-        caption.className = 'cb-lightbox-cap';
-        caption.textContent = title;
-        card.appendChild(caption);
-      }
-      overlay.appendChild(card);
-      const close = () => overlay.remove();
-      overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
-      document.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); }, { once: true });
-      document.body.appendChild(overlay);
-    };
-
     return {
       inject: ['slots', 'uiConversation'],
       apply(ctx) {
-        installFallback();
         try {
           ctx.uiConversation.events.register(cardDefinition);
         } catch (error) {
