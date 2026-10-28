@@ -1,0 +1,5 @@
+- insert:
+    - id: choice
+      name: 'dsh-choice'
+      config:
+        bridgePort: 49236
