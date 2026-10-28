@@ -170,14 +170,27 @@ window.__ModuleLoader__.load({
     const sendMessage = async (text) => {
       const send = findSendButton();
       const area = findComposer();
-      if (!area) return false;
+      if (!area) return { ok: false, debug: 'no composer' };
       const draft = composerText(area);
+      let inserted = false;
 
       for (let attempt = 0; attempt < 3; attempt += 1) {
         setComposerText(area, text);
-        await sleep(140);
-        if (composerText(area) === text.trim()) break;
-        if (attempt === 2) return false; // never send the user's own draft by mistake
+        await sleep(150);
+        if (composerText(area) === text.trim()) { inserted = true; break; }
+        if (attempt === 1) {
+          area.textContent = text;
+          area.dispatchEvent(new Event('input', { bubbles: true }));
+          await sleep(120);
+          if (composerText(area) === text.trim()) { inserted = true; break; }
+        }
+      }
+
+      if (!inserted) {
+        return {
+          ok: false,
+          debug: `insert failed: <${area.tagName.toLowerCase()} class="${(area.className || '').toString().slice(0, 40)}"> draft="${draft.slice(0, 20)}"`,
+        };
       }
 
       if (send) send.click();
@@ -187,7 +200,7 @@ window.__ModuleLoader__.load({
       if (draft && composerText(area) === '') {
         setComposerText(area, draft);
       }
-      return true;
+      return { ok: true, debug: `sent; button=${send ? 'yes' : 'no'}` };
     };
 
 
@@ -216,12 +229,14 @@ window.__ModuleLoader__.load({
       const labelOf = (option, index) => option?.title ?? option?.id ?? `option-${index + 1}`;
       const valueOf = (option, index) => (typeof option?.value === 'string' ? option.value : labelOf(option, index));
 
+      const [debug, setDebug] = React.useState('');
       const choose = async (option, index, none) => {
         if (picked) return;
         const text = none ? (args.noneLabel || '—') : valueOf(option, index);
         const id = none ? '__none__' : String(option?.id ?? `option-${index + 1}`);
         setPicked(id);
-        await sendMessage(text);
+        const result = await sendMessage(text);
+        setDebug(result?.debug ?? '');
       };
 
       const togglePlay = (index, source) => {
@@ -318,6 +333,7 @@ window.__ModuleLoader__.load({
         ),
         ...rows,
         noneRow,
+        debug ? h('span', { className: 'cb-foot' }, debug) : null,
         lightbox,
       );
     }
