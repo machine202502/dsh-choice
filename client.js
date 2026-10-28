@@ -214,12 +214,17 @@ window.__ModuleLoader__.load({
         setPlaying(index);
       };
 
-      const selectButton = (selected, disabled, onClick) => h('button', {
+      const selectButton = (selected, disabled, onClick, meta) => h('button', {
         type: 'button',
         className: `cb-select${selected ? ' cb-select--picked' : ''}`,
         disabled,
         title: t.select,
         'aria-label': t.select,
+        'data-cb': 'pick',
+        'data-cb-value': meta?.value ?? '',
+        'data-cb-id': meta?.id ?? '',
+        'data-cb-none': meta?.none ? '1' : '0',
+        onPointerDown: (event) => { event.stopPropagation(); event.preventDefault(); onClick(); },
         onClick: (event) => { event.stopPropagation(); onClick(); },
       }, '✓');
 
@@ -232,12 +237,19 @@ window.__ModuleLoader__.load({
         if (kind === 'image') {
           mediaBlock = h('button', {
             className: 'cb-media',
+            type: 'button',
+            'data-cb': 'image',
+            'data-cb-src': source ?? '',
+            'data-cb-title': labelOf(option, index),
             title: t.open,
             onClick: (event) => { event.stopPropagation(); if (source) setZoom({ src: source, title: labelOf(option, index), desc: option?.description }); },
           }, source ? h('img', { className: 'cb-thumb', src: source, alt: '' }) : null);
         } else if (kind === 'audio') {
           mediaBlock = h('button', {
             className: 'cb-media',
+            type: 'button',
+            'data-cb': 'play',
+            'data-cb-src': source ?? '',
             title: t.play,
             disabled: !source,
             onClick: (event) => { event.stopPropagation(); togglePlay(index, source); },
@@ -250,14 +262,14 @@ window.__ModuleLoader__.load({
             h('span', { className: 'cb-label' }, labelOf(option, index)),
             option?.description ? h('span', { className: 'cb-desc' }, option.description) : null,
           ),
-          selectButton(selected, Boolean(picked), () => void choose(option, index, false)),
+          selectButton(selected, Boolean(picked), () => void choose(option, index, false), { value: valueOf(option, index), id }),
         );
       });
 
       const noneSelected = picked === '__none__';
       const noneRow = h('div', { className: `cb-row${noneSelected ? ' cb-row--selected' : ''}` },
         h('span', { className: 'cb-text' }, h('span', { className: 'cb-label' }, args.noneLabel || '—')),
-        selectButton(noneSelected, Boolean(picked), () => void choose(null, -1, true)),
+        selectButton(noneSelected, Boolean(picked), () => void choose(null, -1, true), { value: args.noneLabel || '', id: '__none__', none: true }),
       );
 
       const lightbox = zoom
@@ -285,9 +297,68 @@ window.__ModuleLoader__.load({
       );
     }
 
+    const installFallback = () => {
+      if (window.__dshChoiceFallback) return;
+      window.__dshChoiceFallback = true;
+      const handle = (event) => {
+        const target = event.target instanceof Element ? event.target.closest('[data-cb]') : null;
+        if (!target) return;
+        const kind = target.getAttribute('data-cb');
+        if (kind === 'play') {
+          const src = target.getAttribute('data-cb-src');
+          if (src) { const audio = new Audio(src); void audio.play(); }
+          return;
+        }
+        if (kind === 'image') {
+          const src = target.getAttribute('data-cb-src');
+          if (!src) return;
+          openLightbox(src, target.getAttribute('data-cb-title') ?? '');
+          return;
+        }
+        if (kind === 'pick') {
+          if (target.disabled) return;
+          const value = target.getAttribute('data-cb-value') ?? '';
+          const card = target.closest('.cb-card');
+          if (card) {
+            card.querySelectorAll('[data-cb="pick"]').forEach((button) => { button.disabled = true; });
+            target.classList.add('cb-select--picked');
+            target.textContent = '✓';
+            const row = target.closest('.cb-row');
+            if (row) row.classList.add('cb-row--selected');
+          }
+          if (value) void sendMessage(value);
+        }
+      };
+      document.addEventListener('pointerdown', handle, true);
+    };
+
+    const openLightbox = (src, title) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'cb-lightbox';
+      overlay.innerHTML = '';
+      const card = document.createElement('div');
+      card.className = 'cb-lightbox-card';
+      const img = document.createElement('img');
+      img.className = 'cb-lightbox-img';
+      img.src = src;
+      card.appendChild(img);
+      if (title) {
+        const caption = document.createElement('span');
+        caption.className = 'cb-lightbox-cap';
+        caption.textContent = title;
+        card.appendChild(caption);
+      }
+      overlay.appendChild(card);
+      const close = () => overlay.remove();
+      overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+      document.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); }, { once: true });
+      document.body.appendChild(overlay);
+    };
+
     return {
       inject: ['slots', 'uiConversation'],
       apply(ctx) {
+        installFallback();
         try {
           ctx.uiConversation.events.register(cardDefinition);
         } catch (error) {
