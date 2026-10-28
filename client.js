@@ -204,10 +204,7 @@ window.__ModuleLoader__.load({
       }
 
       if (!inserted) {
-        return {
-          ok: false,
-          debug: `insert failed: <${area.tagName.toLowerCase()} class="${(area.className || '').toString().slice(0, 40)}"> draft="${draft.slice(0, 20)}" now="${composerText(area).slice(0, 20)}"`,
-        };
+        return { ok: false };
       }
 
       if (send) send.click();
@@ -217,7 +214,7 @@ window.__ModuleLoader__.load({
       if (draft && composerText(area) === '') {
         await setComposerText(area, draft);
       }
-      return { ok: true, debug: `sent; button=${send ? 'yes' : 'no'}` };
+      return { ok: true };
     };
 
 
@@ -246,14 +243,12 @@ window.__ModuleLoader__.load({
       const labelOf = (option, index) => option?.title ?? option?.id ?? `option-${index + 1}`;
       const valueOf = (option, index) => (typeof option?.value === 'string' ? option.value : labelOf(option, index));
 
-      const [debug, setDebug] = React.useState('');
       const choose = async (option, index, none) => {
         if (picked) return;
         const text = none ? (args.noneLabel || '—') : valueOf(option, index);
         const id = none ? '__none__' : String(option?.id ?? `option-${index + 1}`);
         setPicked(id);
-        const outcome = await sendMessage(text);
-        setDebug(outcome?.debug ?? '');
+        await sendMessage(text);
       };
 
       const togglePlay = (index, source) => {
@@ -350,7 +345,6 @@ window.__ModuleLoader__.load({
         ),
         ...rows,
         noneRow,
-        debug ? h('span', { className: 'cb-foot' }, debug) : null,
         lightbox,
       );
     }
