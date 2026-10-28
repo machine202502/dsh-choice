@@ -119,7 +119,7 @@ window.__ModuleLoader__.load({
           anchorSeq: state.seq,
           location: context.location ?? { kind: 'chat' },
           visibility: 'visible',
-          data: state,
+          data: { ...state, nodeKey: context.key },
         };
       },
     };
@@ -165,7 +165,7 @@ window.__ModuleLoader__.load({
       return true;
     };
 
-    const storageKey = (callId) => `dsh-choice:${callId}`;
+    const storageKey = (callId) => `dsh-choice:v2:${callId}`;
     const readPicked = (callId) => {
       try { return window.localStorage.getItem(storageKey(callId)); } catch { return null; }
     };
@@ -177,7 +177,7 @@ window.__ModuleLoader__.load({
       ensureStyles();
       const data = props?.node?.data ?? {};
       const args = data.args ?? {};
-      const callId = data.id ?? 'board';
+      const callId = data.nodeKey ?? data.id ?? 'board';
       const options = Array.isArray(args.options) ? args.options : [];
       const [loaded, setLoaded] = React.useState({});
       const [picked, setPicked] = React.useState(() => readPicked(callId));
