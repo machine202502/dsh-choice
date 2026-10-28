@@ -124,9 +124,31 @@ window.__ModuleLoader__.load({
       },
     };
 
-    const findComposer = () => document.querySelector('[contenteditable="true"][role="textbox"]')
-      ?? document.querySelector('[contenteditable="true"]')
-      ?? document.querySelector('textarea');
+    const visible = (node) => node instanceof HTMLElement && node.offsetParent !== null;
+
+    const findSendButton = () => [...document.querySelectorAll('button')]
+      .find((button) => /send|submit|отправ/i.test(button.getAttribute('aria-label') ?? button.title ?? ''));
+
+    const findComposer = () => {
+      const areas = [...document.querySelectorAll('[contenteditable="true"], textarea')].filter(visible);
+      if (areas.length === 0) return null;
+      const placeholder = areas.find((area) => /message|сообщени/i.test(
+        area.getAttribute('aria-placeholder') ?? area.getAttribute('data-placeholder') ?? area.getAttribute('placeholder') ?? ''));
+      if (placeholder) return placeholder;
+      const send = findSendButton();
+      if (send) {
+        const rect = send.getBoundingClientRect();
+        let best = null;
+        let bestDistance = Infinity;
+        for (const area of areas) {
+          const box = area.getBoundingClientRect();
+          const distance = Math.abs(box.bottom - rect.bottom) + Math.abs(box.right - rect.right) * 0.1;
+          if (distance < bestDistance) { bestDistance = distance; best = area; }
+        }
+        if (best) return best;
+      }
+      return areas[areas.length - 1] ?? null;
+    };
 
     const composerText = (area) => (area instanceof HTMLTextAreaElement ? area.value : (area.innerText ?? area.textContent ?? '')).trim();
 
@@ -143,25 +165,28 @@ window.__ModuleLoader__.load({
       else document.execCommand('insertText', false, text);
     };
 
-    const findSendButton = () => [...document.querySelectorAll('button')]
-      .find((button) => /send|submit|отправ/i.test(button.getAttribute('aria-label') ?? button.title ?? ''));
-
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     const sendMessage = async (text) => {
+      const send = findSendButton();
       const area = findComposer();
       if (!area) return false;
       const draft = composerText(area);
-      setComposerText(area, text);
-      await sleep(120);
-      const send = findSendButton();
-      if (send) {
-        send.click();
-      } else {
-        area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        setComposerText(area, text);
+        await sleep(140);
+        if (composerText(area) === text.trim()) break;
+        if (attempt === 2) return false; // never send the user's own draft by mistake
       }
-      await sleep(200);
-      if (draft && composerText(area) === '') setComposerText(area, draft);
+
+      if (send) send.click();
+      else area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+
+      await sleep(180);
+      if (draft && composerText(area) === '') {
+        setComposerText(area, draft);
+      }
       return true;
     };
 
