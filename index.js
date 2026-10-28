@@ -114,6 +114,20 @@ export function apply(ctx, config = {}) {
       render: (_args, value) => [{ type: 'text', text: `[media:${JSON.stringify(value.media ?? [])}]` }],
     },
     async execute(args, exec) {
+      try {
+        mkdirSync(root, { recursive: true });
+        writeFileSync(join(root, 'exec.log'), JSON.stringify({
+          at: new Date().toISOString(),
+          keys: Object.keys(exec ?? {}),
+          parent: exec?.parent !== undefined,
+          agentType: typeof exec?.agent,
+          agentKeys: exec?.agent ? Object.keys(exec.agent) : [],
+          agentAddress: exec?.agent?.address ?? null,
+          token: typeof exec?.token,
+        }) + '\n', { flag: 'a' });
+      } catch {
+        // Diagnostics are best-effort.
+      }
       if (exec?.parent !== undefined || exec?.agent?.address !== undefined) {
         throw new Error('ask_user_choice is only available to the main agent: a subagent cannot show a board to the user');
       }
