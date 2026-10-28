@@ -62,6 +62,8 @@ window.__ModuleLoader__.load({
     };
 
     const isUrl = (value) => /^https?:\/\//i.test(value ?? '');
+    /** Cards that already posted their pick in this page session. */
+    const sentCards = new Set();
     const ourCalls = new Set();
 
     const cardDefinition = {
@@ -225,7 +227,7 @@ window.__ModuleLoader__.load({
       const callId = data.seq !== undefined && data.seq !== null ? String(data.seq) : (data.nodeKey ?? data.id ?? 'board');
       const options = Array.isArray(args.options) ? args.options : [];
       const [loaded, setLoaded] = React.useState({});
-      const [picked, setPicked] = React.useState(null);
+      const [picked, setPicked] = React.useState(() => (sentCards.has(callId) ? '__sent__' : null));
       const [playing, setPlaying] = React.useState(null);
       const [zoom, setZoom] = React.useState(null);
       const audioRef = React.useRef(null);
@@ -244,7 +246,8 @@ window.__ModuleLoader__.load({
       const valueOf = (option, index) => (typeof option?.value === 'string' ? option.value : labelOf(option, index));
 
       const choose = async (option, index, none) => {
-        if (picked) return;
+        if (picked || sentCards.has(callId)) return;
+        sentCards.add(callId);
         const text = none ? (args.noneLabel || '—') : valueOf(option, index);
         const id = none ? '__none__' : String(option?.id ?? `option-${index + 1}`);
         setPicked(id);
