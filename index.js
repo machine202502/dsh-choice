@@ -10,7 +10,7 @@ export const inject = ['tools'];
 const dataRoot = () => {
   const base = process.env.LOCALAPPDATA
     || (process.platform === 'darwin' ? join(homedir(), 'Library', 'Application Support') : join(homedir(), '.local', 'share'));
-  return join(base, 'dsh-choice-board');
+  return join(base, 'dsh-choice');
 };
 
 const TYPES = {
