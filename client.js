@@ -24,7 +24,7 @@ window.__ModuleLoader__.load({
       const tag = document.createElement('style');
       tag.dataset.plugin = 'choice-board';
       tag.textContent = `
-.cb-card { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; margin: 6px 0; width: 100%; box-sizing: border-box;
+.cb-card { pointer-events: auto; display: flex; flex-direction: column; gap: 2px; padding: 6px 0; margin: 6px 0; width: 100%; box-sizing: border-box;
   border: .5px solid var(--dsw-alias-border-l1, rgba(0,0,0,.10)); border-radius: 16px;
   background: var(--dsw-alias-bg-l1, rgba(0,0,0,.015)); max-width: 640px; overflow: hidden; }
 .cb-head { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px 8px; }
@@ -165,13 +165,6 @@ window.__ModuleLoader__.load({
       return true;
     };
 
-    const storageKey = (callId) => `dsh-choice:v3:${callId}`;
-    const readPicked = (callId) => {
-      try { return window.localStorage.getItem(storageKey(callId)); } catch { return null; }
-    };
-    const writePicked = (callId, value) => {
-      try { window.localStorage.setItem(storageKey(callId), value); } catch { /* storage off */ }
-    };
 
     function ChoiceCard(props) {
       ensureStyles();
@@ -180,7 +173,7 @@ window.__ModuleLoader__.load({
       const callId = data.seq !== undefined && data.seq !== null ? String(data.seq) : (data.nodeKey ?? data.id ?? 'board');
       const options = Array.isArray(args.options) ? args.options : [];
       const [loaded, setLoaded] = React.useState({});
-      const [picked, setPicked] = React.useState(() => readPicked(callId));
+      const [picked, setPicked] = React.useState(null);
       const [playing, setPlaying] = React.useState(null);
       const [zoom, setZoom] = React.useState(null);
       const audioRef = React.useRef(null);
@@ -203,7 +196,6 @@ window.__ModuleLoader__.load({
         const text = none ? (args.noneLabel || '—') : valueOf(option, index);
         const id = none ? '__none__' : String(option?.id ?? `option-${index + 1}`);
         setPicked(id);
-        writePicked(callId, id);
         await sendMessage(text);
       };
 
@@ -223,6 +215,7 @@ window.__ModuleLoader__.load({
       };
 
       const selectButton = (selected, disabled, onClick) => h('button', {
+        type: 'button',
         className: `cb-select${selected ? ' cb-select--picked' : ''}`,
         disabled,
         title: t.select,
