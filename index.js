@@ -114,29 +114,11 @@ export function apply(ctx, config = {}) {
       render: (_args, value) => [{ type: 'text', text: `[media:${JSON.stringify(value.media ?? [])}]` }],
     },
     async execute(args, exec) {
-      try {
-        mkdirSync(root, { recursive: true });
-        const agent = exec?.agent ?? {};
-        const session = agent.session ?? {};
-        const scope = agent.scope ?? {};
-        writeFileSync(join(root, 'exec.log'), JSON.stringify({
-          at: new Date().toISOString(),
-          callId: String(exec?.callId ?? ''),
-          agentId: String(agent.id ?? ''),
-          sessionKeys: Object.keys(session),
-          sessionId: String(session.id ?? ''),
-          sessionAddress: session.address ?? null,
-          sessionParent: session.parentId ?? session.parentSessionId ?? null,
-          optionsKeys: Object.keys(agent.options ?? {}),
-          optionsAddress: agent.options?.address ?? null,
-          scopeKeys: Object.keys(scope),
-          scopeAddress: scope.address ?? null,
-          loopKeys: Object.keys(agent.loopCtx ?? {}),
-        }) + '\n', { flag: 'a' });
-      } catch {
-        // Diagnostics are best-effort.
-      }
-      if (exec?.parent !== undefined || exec?.agent?.address !== undefined) {
+      const depth = exec?.agent?.options?.subagentDepth;
+      const isSubagent = exec?.parent !== undefined
+        || exec?.agent?.address !== undefined
+        || (typeof depth === 'number' && depth > 0);
+      if (isSubagent) {
         throw new Error('ask_user_choice is only available to the main agent: a subagent cannot show a board to the user');
       }
       const options = Array.isArray(args?.options) ? args.options : [];
