@@ -113,7 +113,10 @@ export function apply(ctx, config = {}) {
       },
       render: (_args, value) => [{ type: 'text', text: `[media:${JSON.stringify(value.media ?? [])}]` }],
     },
-    async execute(args) {
+    async execute(args, exec) {
+      if (exec?.parent !== undefined || exec?.agent?.address !== undefined) {
+        throw new Error('ask_user_choice is only available to the main agent: a subagent cannot show a board to the user');
+      }
       const options = Array.isArray(args?.options) ? args.options : [];
       if (options.length < 2) throw new Error('options must contain at least two items');
       if (options.length > 8) throw new Error('at most 8 options per board');
