@@ -229,14 +229,12 @@ window.__ModuleLoader__.load({
       const labelOf = (option, index) => option?.title ?? option?.id ?? `option-${index + 1}`;
       const valueOf = (option, index) => (typeof option?.value === 'string' ? option.value : labelOf(option, index));
 
-      const [debug, setDebug] = React.useState('');
       const choose = async (option, index, none) => {
         if (picked) return;
         const text = none ? (args.noneLabel || '—') : valueOf(option, index);
         const id = none ? '__none__' : String(option?.id ?? `option-${index + 1}`);
         setPicked(id);
-        const result = await sendMessage(text);
-        setDebug(result?.debug ?? '');
+        await sendMessage(text);
       };
 
       const togglePlay = (index, source) => {
@@ -333,7 +331,6 @@ window.__ModuleLoader__.load({
         ),
         ...rows,
         noneRow,
-        debug ? h('span', { className: 'cb-foot' }, debug) : null,
         lightbox,
       );
     }
