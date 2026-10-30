@@ -46,12 +46,39 @@ export function apply(ctx, config = {}) {
     if (!isAbsolute(source) || !existsSync(source)) return null;
     const ext = extname(source).toLowerCase();
     if (!TYPES[ext]) return null;
-    if (statSync(source).size > 25 * 1024 * 1024) return null;
-    const name = `${createHash('sha1').update(source).digest('hex').slice(0, 12)}${ext}`;
+    const size = statSync(source).size;
+    if (size > 25 * 1024 * 1024) return null;
+
+    // The file may be mid-rewrite by the agent (Windows sharing violations);
+    // retry briefly instead of returning a half-written snapshot.
+    let bytes = null;
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      try {
+        bytes = readFileSync(source);
+        break;
+      } catch (error) {
+        if (attempt === 3) throw new Error(`cannot read ${source}: ${error?.code ?? error}`);
+        sleepSync(120);
+      }
+    }
+    if (bytes === null) return null;
+
+    // Content-addressed: the same path with new bytes gets a new URL, so a
+    // rewritten file never resolves to the previous snapshot.
+    const name = `${createHash('sha256').update(bytes).digest('hex').slice(0, 12)}${ext}`;
     const target = join(mediaDir, name);
-    if (!existsSync(target)) writeFileSync(target, readFileSync(source));
+    if (!existsSync(target) || statSync(target).size !== bytes.length) {
+      writeFileSync(target, bytes);
+    }
     media.set(name, TYPES[ext]);
     return `${base}/media/${name}`;
+  };
+
+  const sleepSync = (ms) => {
+    const until = Date.now() + ms;
+    while (Date.now() < until) {
+      // Busy-wait is fine here: this runs once per option during tool setup.
+    }
   };
 
   const tool = {
