@@ -1,11 +1,32 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join, extname, isAbsolute } from 'node:path';
+import { createReadStream, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { join, dirname, extname, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { createServer } from 'node:http';
 
 export const name = 'dsh-choice';
 export const inject = ['tools'];
+
+/** Language choices stored in settings.json; `auto` follows the application locale. */
+const LANGUAGES = ['ru', 'en', 'zh', 'auto'];
+const DEFAULT_SETTINGS = { language: 'ru' };
+
+/** Read a JSON file, returning null instead of throwing on a missing or broken one. */
+function readJson(file) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/** Write JSON through a temporary file so a crash never leaves half a file. */
+function writeJson(file, value) {
+  mkdirSync(dirname(file), { recursive: true });
+  const temporary = `${file}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+  renameSync(temporary, file);
+}
 
 const dataRoot = () => {
   const base = process.env.LOCALAPPDATA
@@ -39,6 +60,20 @@ export function apply(ctx, config = {}) {
   const port = Number.isFinite(config.bridgePort) ? Number(config.bridgePort) : 49236;
   const base = `http://127.0.0.1:${port}`;
   const media = new Map();
+  const settingsFile = join(root, 'settings.json');
+
+  /** The stored settings, falling back to the defaults on any damage. */
+  const loadSettings = () => {
+    const stored = readJson(settingsFile);
+    const language = LANGUAGES.includes(stored?.language) ? stored.language : DEFAULT_SETTINGS.language;
+    return { language };
+  };
+  const saveSettings = (input) => {
+    const language = LANGUAGES.includes(input?.language) ? input.language : DEFAULT_SETTINGS.language;
+    const next = { language };
+    writeJson(settingsFile, next);
+    return next;
+  };
 
   const attach = (source) => {
     if (typeof source !== 'string' || !source) return null;
@@ -167,12 +202,39 @@ export function apply(ctx, config = {}) {
 
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', base);
+    const cors = {
+      'access-control-allow-origin': '*',
+      'access-control-allow-headers': 'content-type',
+      'access-control-allow-methods': 'GET,POST,OPTIONS',
+      'cache-control': 'no-store',
+    };
     const json = (code, body) => {
-      res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' });
+      res.writeHead(code, { ...cors, 'content-type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(body));
     };
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, cors).end();
+      return;
+    }
     if (req.method === 'GET' && url.pathname === '/status') {
       json(200, { ok: true, port, media: media.size });
+      return;
+    }
+    if (req.method === 'GET' && url.pathname === '/settings') {
+      json(200, { values: loadSettings(), defaults: DEFAULT_SETTINGS, options: LANGUAGES });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/settings') {
+      let body = '';
+      req.on('data', (chunk) => { body += chunk; if (body.length > 4096) req.destroy(); });
+      req.on('end', () => {
+        try {
+          const parsed = body ? JSON.parse(body) : {};
+          json(200, { values: saveSettings(parsed), defaults: DEFAULT_SETTINGS });
+        } catch (error) {
+          json(400, { ok: false, error: String(error?.message ?? error) });
+        }
+      });
       return;
     }
     if (req.method === 'GET' && url.pathname.startsWith('/media/')) {

@@ -53,6 +53,29 @@ Local files are copied into `%LOCALAPPDATA%\dsh-choice\media` and served over lo
 | `GET` | `/status` | port and media counter |
 | `GET` | `/media/<file>` | served image or audio |
 | `POST` | `/attach` | copy a local file and return its URL |
+| `GET` | `/settings` | stored settings (`language`) |
+| `POST` | `/settings` | save `language`: `ru`, `en`, `zh` or `auto` |
+
+## Settings
+
+The plugin row config (`plugins.row.config`) holds one control: the interface language —
+Русский, English, 中文 or Авто. It is stored in `%LOCALAPPDATA%\dsh-choice\settings.json`
+and applies to the card and the form without a restart.
+
+The language is resolved in this order:
+
+1. the saved `language`, when it is `ru`, `en` or `zh`;
+2. `auto` — the application language: `document.documentElement.lang`, then
+   `navigator.language`; `ru*` → ru, `zh*` → zh, anything else → en;
+3. nothing stored — `ru`.
+
+All card text (title, subtitle, option titles and descriptions, `noneLabel`) comes from the
+agent, in the language of the conversation; only the plugin's own labels — the pick, play
+and open buttons and the settings row — follow the language above.
+
+## Screenshots
+
+![Plugin settings](docs/img/settings.jpg)
 
 ## Install
 

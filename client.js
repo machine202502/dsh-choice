@@ -4,20 +4,103 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const h = React.createElement;
 
-    const LOCALE = (() => {
-      const candidates = [
-        document.documentElement.lang,
-        ...(Array.isArray(navigator.languages) ? navigator.languages : []),
-        navigator.language,
-      ].filter((value) => typeof value === 'string' && value.length > 0).map((value) => value.toLowerCase());
-      return candidates.some((value) => value.startsWith('ru')) ? 'ru' : 'en';
-    })();
+    /** Loopback bridge of the host half; the saved language lives behind it. */
+    const PORT = 49236;
+    const base = `http://127.0.0.1:${PORT}`;
 
     const STRINGS = {
-      en: { select: 'Select', play: 'Play', open: 'Open' },
-      ru: { select: 'Выбрать', play: 'Воспроизвести', open: 'Открыть' },
+      ru: {
+        select: 'Выбрать',
+        play: 'Воспроизвести',
+        open: 'Открыть',
+        option: 'Вариант',
+        settingsTitle: 'Язык',
+        settingsHint: 'Авто — по языку приложения',
+        save: 'Сохранить',
+        saved: 'Сохранено',
+        saveFailed: 'Не удалось сохранить',
+        loading: 'Загрузка…',
+        auto: 'Авто',
+        langRu: 'Русский',
+        langEn: 'English',
+        langZh: '中文',
+      },
+      en: {
+        select: 'Select',
+        play: 'Play',
+        open: 'Open',
+        option: 'Option',
+        settingsTitle: 'Language',
+        settingsHint: 'Auto follows the application language',
+        save: 'Save',
+        saved: 'Saved',
+        saveFailed: 'Could not save',
+        loading: 'Loading…',
+        auto: 'Auto',
+        langRu: 'Русский',
+        langEn: 'English',
+        langZh: '中文',
+      },
+      zh: {
+        select: '选择',
+        play: '播放',
+        open: '打开',
+        option: '选项',
+        settingsTitle: '语言',
+        settingsHint: '自动 — 跟随应用界面语言',
+        save: '保存',
+        saved: '已保存',
+        saveFailed: '保存失败',
+        loading: '加载中…',
+        auto: '自动',
+        langRu: 'Русский',
+        langEn: 'English',
+        langZh: '中文',
+      },
     };
-    const t = STRINGS[LOCALE];
+
+    /** The interface language; the shared default until the settings answer. */
+    let uiLanguage = 'ru';
+    const languageListeners = new Set();
+    const setLanguage = (next) => {
+      if (!STRINGS[next] || next === uiLanguage) return;
+      uiLanguage = next;
+      for (const listener of languageListeners) listener(next);
+    };
+
+    /** The application locale an `auto` preference follows. */
+    const detectLanguage = () => {
+      const raw = String(
+        (typeof document === 'undefined' ? '' : document.documentElement?.lang)
+        || (typeof navigator === 'undefined' ? '' : navigator.language)
+        || 'en',
+      ).toLowerCase();
+      if (raw.startsWith('ru')) return 'ru';
+      if (raw.startsWith('zh')) return 'zh';
+      return 'en';
+    };
+
+    /** Saved language first, `auto` second, the ru default when nothing is stored. */
+    const resolveLanguage = (settings) => {
+      const preference = settings?.language;
+      if (preference === 'ru' || preference === 'en' || preference === 'zh') return preference;
+      if (preference === 'auto') return detectLanguage();
+      return 'ru';
+    };
+
+    /** Read the stored language over the loopback bridge; failure keeps the default. */
+    const readSettings = async () => {
+      const response = await fetch(`${base}/settings`, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const body = await response.json();
+      setLanguage(resolveLanguage(body?.values));
+      return body;
+    };
+
+    // The card may render before the bridge answers; it re-renders on a language change.
+    void readSettings().catch(() => {});
+    // Another page part (or a second form instance) saved the language: re-read it.
+    window.addEventListener('dsh-choice:settings', () => { void readSettings().catch(() => {}); });
 
     const ensureStyles = () => {
       if (document.querySelector('style[data-plugin="choice-board"]')) return;
@@ -57,6 +140,17 @@ window.__ModuleLoader__.load({
   background: var(--dsw-alias-bg-l1, #fff); border-radius: 16px; padding: 10px; box-shadow: 0 24px 60px rgba(0,0,0,.35); }
 .cb-lightbox-img { max-width: 100%; max-height: 76vh; object-fit: contain; border-radius: 10px; display: block; }
 .cb-lightbox-cap { font-size: 12px; opacity: .7; padding: 0 4px 2px; }
+.cb-set { display: flex; flex-direction: column; gap: 14px; max-width: 520px; padding: 4px 0 8px; font-size: 13px; }
+.cb-set-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.cb-set-hint { margin-top: 2px; font-size: 12px; line-height: 16px; opacity: .6; }
+.cb-set-select { height: 32px; padding: 0 10px; border: 1px solid var(--dsw-alias-border-l1, #dcdcdc); border-radius: 10px;
+  background: var(--dsw-alias-bg-base, #fff); color: inherit; font: inherit; outline: none; }
+.cb-set-actions { display: flex; align-items: center; gap: 12px; }
+.cb-set-save { height: 34px; padding: 0 16px; border: none; border-radius: 10px;
+  background: var(--dsw-alias-label-primary, #1f1f1f); color: var(--dsw-alias-bg-base, #fff); font: inherit; cursor: pointer; }
+.cb-set-save:disabled { opacity: .45; cursor: default; }
+.cb-set-status { font-size: 12px; opacity: .6; }
+.cb-set-status--error { color: #c0392b; opacity: 1; }
 `;
       document.head.appendChild(tag);
     };
@@ -222,6 +316,8 @@ window.__ModuleLoader__.load({
 
     function ChoiceCard(props) {
       ensureStyles();
+      const [language, setLanguageState] = React.useState(uiLanguage);
+      const t = STRINGS[language] ?? STRINGS.ru;
       const data = props?.node?.data ?? {};
       const args = data.args ?? {};
       const callId = data.seq !== undefined && data.seq !== null ? String(data.seq) : (data.nodeKey ?? data.id ?? 'board');
@@ -233,6 +329,11 @@ window.__ModuleLoader__.load({
       const audioRef = React.useRef(null);
 
 
+      React.useEffect(() => {
+        languageListeners.add(setLanguageState);
+        setLanguageState(uiLanguage);
+        return () => { languageListeners.delete(setLanguageState); };
+      }, []);
       React.useEffect(() => () => { audioRef.current?.pause?.(); }, []);
       React.useEffect(() => {
         if (!zoom) return undefined;
@@ -242,7 +343,7 @@ window.__ModuleLoader__.load({
       }, [zoom]);
 
       const sourceOf = (option, index) => (isUrl(option?.src) ? option.src : (data.media?.[index] ?? loaded[index] ?? null));
-      const labelOf = (option, index) => option?.title ?? option?.id ?? `option-${index + 1}`;
+      const labelOf = (option, index) => option?.title ?? option?.id ?? `${t.option} ${index + 1}`;
       const valueOf = (option, index) => (typeof option?.value === 'string' ? option.value : labelOf(option, index));
 
       const choose = async (option, index, none) => {
@@ -297,6 +398,7 @@ window.__ModuleLoader__.load({
             'data-cb-src': source ?? '',
             'data-cb-title': labelOf(option, index),
             title: t.open,
+            'aria-label': t.open,
             onClick: (event) => { event.stopPropagation(); if (source) setZoom({ src: source, title: labelOf(option, index), desc: option?.description }); },
           }, source ? h('img', { className: 'cb-thumb', src: source, alt: '' }) : null);
         } else if (kind === 'audio') {
@@ -306,6 +408,7 @@ window.__ModuleLoader__.load({
             'data-cb': 'play',
             'data-cb-src': source ?? '',
             title: t.play,
+            'aria-label': t.play,
             disabled: !source,
             onClick: (event) => { event.stopPropagation(); togglePlay(index, source); },
           }, h('span', { className: 'cb-play' }, playing === index ? '❚❚' : '▶'));
@@ -352,6 +455,90 @@ window.__ModuleLoader__.load({
       );
     }
 
+    /**
+     * The settings row: one language select, saved to the host bridge so the
+     * board and the form agree without a restart.
+     */
+    function ChoiceSettings() {
+      ensureStyles();
+      const [state, setState] = React.useState({ status: 'loading', values: {}, defaults: {} });
+      const [saving, setSaving] = React.useState(false);
+      const [notice, setNotice] = React.useState({ text: '', error: false });
+      const [language, setLanguageState] = React.useState(uiLanguage);
+
+      React.useEffect(() => {
+        let alive = true;
+        languageListeners.add(setLanguageState);
+        readSettings()
+          .then((body) => {
+            if (alive) setState({ status: 'ready', values: body?.values ?? {}, defaults: body?.defaults ?? {} });
+          })
+          .catch(() => {
+            if (alive) setState({ status: 'error', values: {}, defaults: {} });
+          });
+        return () => {
+          alive = false;
+          languageListeners.delete(setLanguageState);
+        };
+      }, []);
+
+      const t = STRINGS[language] ?? STRINGS.ru;
+      const chosen = state.values.language ?? state.defaults.language ?? 'ru';
+
+      const save = async () => {
+        setSaving(true);
+        setNotice({ text: '', error: false });
+        try {
+          const response = await fetch(`${base}/settings`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ language: chosen }),
+          });
+          const body = await response.json();
+          if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
+          setState({ status: 'ready', values: body.values ?? {}, defaults: body.defaults ?? {} });
+          setLanguage(resolveLanguage(body?.values));
+          setNotice({ text: (STRINGS[uiLanguage] ?? STRINGS.ru).saved, error: false });
+          window.dispatchEvent(new CustomEvent('dsh-choice:settings'));
+        } catch (error) {
+          setNotice({ text: `${(STRINGS[uiLanguage] ?? STRINGS.ru).saveFailed}: ${String(error?.message ?? error)}`, error: true });
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      if (state.status === 'loading') {
+        return h('div', { className: 'cb-set' }, h('span', { className: 'cb-set-status' }, t.loading));
+      }
+
+      const options = [
+        ['ru', t.langRu],
+        ['en', t.langEn],
+        ['zh', t.langZh],
+        ['auto', t.auto],
+      ];
+
+      return h('div', { className: 'cb-set' },
+        h('div', { className: 'cb-set-row' },
+          h('div', null,
+            h('div', null, t.settingsTitle),
+            h('div', { className: 'cb-set-hint' }, t.settingsHint),
+          ),
+          h('select', {
+            className: 'cb-set-select',
+            value: chosen,
+            'aria-label': t.settingsTitle,
+            onChange: (event) => setState((previous) => ({ ...previous, values: { ...previous.values, language: event.target.value } })),
+          }, options.map(([value, text]) => h('option', { key: value, value }, text))),
+        ),
+        h('div', { className: 'cb-set-actions' },
+          h('button', { type: 'button', className: 'cb-set-save', onClick: save, disabled: saving === true },
+            saving ? '…' : t.save),
+          notice.text ? h('span', { className: `cb-set-status${notice.error ? ' cb-set-status--error' : ''}` }, notice.text) : null,
+        ),
+      );
+    }
+
     return {
       inject: ['slots', 'uiConversation'],
       apply(ctx) {
@@ -367,6 +554,14 @@ window.__ModuleLoader__.load({
           }, ChoiceCard));
         } catch (error) {
           console.warn('dsh-choice: chat node view failed', error);
+        }
+        try {
+          ctx.slots.inject('plugins.row.config', () => ctx.slots.register({
+            name: 'plugins.row.config',
+            key: 'dsh-choice#choice',
+          }, ChoiceSettings));
+        } catch (error) {
+          console.warn('dsh-choice: settings form failed', error);
         }
       },
     };
