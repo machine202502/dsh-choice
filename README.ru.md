@@ -72,6 +72,15 @@ English, 中文 или Авто. Хранится в `%LOCALAPPDATA%\dsh-choice\
    `navigator.language`; `ru*` → ru, `zh*` → zh, всё остальное → en;
 3. ничего не сохранено — `ru`.
 
+## Языки
+
+Интерфейс говорит на русском, английском и китайском. Язык берётся из настройки
+плагина, если это `ru`, `en` или `zh`; `auto` следует языку приложения
+(`document.documentElement.lang`, затем `navigator.language`; `ru*` → ru,
+`zh*` → zh, остальное → en); если ничего не сохранено — `ru`. Меняется в
+**Plugins → Choice**, хранится в `%LOCALAPPDATA%\dsh-choice\settings.json` и
+применяется без перезапуска.
+
 ## Скриншоты
 
 ![Настройки плагина](docs/img/settings.jpg)

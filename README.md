@@ -73,6 +73,15 @@ All card text (title, subtitle, option titles and descriptions, `noneLabel`) com
 agent, in the language of the conversation; only the plugin's own labels — the pick, play
 and open buttons and the settings row — follow the language above.
 
+## Languages
+
+The interface speaks Russian, English and Chinese. The language comes from the
+extension setting when it is `ru`, `en` or `zh`; `auto` follows the application
+language (`document.documentElement.lang`, then `navigator.language`; `ru*` → ru,
+`zh*` → zh, anything else → en); with nothing stored it is `ru`. Change it in
+**Plugins → Choice**; the value lives in `%LOCALAPPDATA%\dsh-choice\settings.json`
+and applies without a restart.
+
 ## Screenshots
 
 ![Plugin settings](docs/img/settings.jpg)
