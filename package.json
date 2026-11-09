@@ -1,7 +1,6 @@
 {
-  "name": "dsh-choice",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@machine202502/dsh-choice",
+  "version": "0.1.1",
   "type": "module",
   "description": "Single-choice board in the chat: pick one of several answers, images or sounds with a click",
   "license": "MIT",
@@ -37,5 +36,9 @@
       ]
     }
   },
-  "icon": "./icon.svg"
+  "icon": "./icon.svg",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

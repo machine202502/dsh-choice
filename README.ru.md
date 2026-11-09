@@ -88,7 +88,7 @@ English, 中文 или Авто. Хранится в `%LOCALAPPDATA%\dsh-choice\
 ## Установка
 
 ```json
-"dsh-choice": "github:machine202502/dsh-choice#main"
+"@machine202502/dsh-choice": "^0.1.1"
 ```
 
 и добавить `dsh-choice` в `dsh.profile.bundles`. Для загрузки хост-части нужен

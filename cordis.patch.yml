@@ -1,5 +1,5 @@
 - insert:
     - id: choice
-      name: 'dsh-choice'
+      name: '@machine202502/dsh-choice'
       config:
         bridgePort: 49236

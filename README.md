@@ -89,7 +89,7 @@ and applies without a restart.
 ## Install
 
 ```json
-"dsh-choice": "github:machine202502/dsh-choice#main"
+"@machine202502/dsh-choice": "^0.1.1"
 ```
 
 and add `dsh-choice` to `dsh.profile.bundles`. A restart is required for the host half to

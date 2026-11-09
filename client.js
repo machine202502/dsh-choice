@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: 'dsh-choice',
+  id: '@machine202502/dsh-choice',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
