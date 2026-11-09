@@ -1,6 +1,6 @@
 {
   "name": "@machine202502/dsh-choice",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "Single-choice board in the chat: pick one of several answers, images or sounds with a click",
   "license": "MIT",
